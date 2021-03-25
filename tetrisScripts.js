@@ -1,9 +1,12 @@
 
-const canvas = document.getElementById("Canvas");
+const canvas = document.getElementById("Canvas"); 
+const scoreLabel = document.getElementById("scoreLabel");
 const canvasContext = canvas.getContext('2d');
 
 
-canvasContext.scale(20,20);
+const scaleValue = 20;
+
+canvasContext.scale(scaleValue,scaleValue);
 
 
 //checking if there are cleared lines
@@ -15,8 +18,10 @@ function arenaSweep(){
       }
     }
 
+
     //cut out the row that is full, change it all to zero then add it back to top
     const row = arena.splice(y, 1)[0].fill(0);
+    updateScore('lineClear');
     arena.unshift(row);
     ++ y;
   }
@@ -142,13 +147,19 @@ function drawMatrix(matrix, offset){
 
   matrix.forEach((row,y)=> {
     row.forEach((value, x) => {
-      if (value !== 0){
+      // if (value !== 0){
         canvasContext.fillStyle = colors[value];
         canvasContext.fillRect(x + offset.x,
                                y + offset.y,
                                 1, 1);
-         
-      }
+        canvasContext.scale(1/scaleValue,1/scaleValue);
+        canvasContext.strokeStyle = '#18191A';
+        canvasContext.strokeRect((x + offset.x)*scaleValue,
+                               (y + offset.y)*scaleValue,
+                                1*scaleValue, 1*scaleValue);
+        canvasContext.scale(scaleValue, scaleValue);      
+      
+      // }
 
 
     });
@@ -174,7 +185,30 @@ function merge(arena, player){
 //manual dropping and also automatic drop, doubles as collison detection
 function playerDrop(){
   player.pos.y++;
+  updateScore('slowDrop');
+  if(checkCollision()){
+    return true;
+  }
+  
 
+
+  dropCounter = 0;
+  return false;
+
+}
+
+function automaticDrop(){
+  player.pos.y++;
+  checkCollision();
+
+  dropCounter = 0;
+
+
+}
+
+
+
+function checkCollision(){
   if(collide(arena, player)){
     player.pos.y--;
     merge(arena, player);
@@ -182,9 +216,6 @@ function playerDrop(){
     arenaSweep();
     return true;
   }
-
-  dropCounter = 0;
-  return false;
 
 }
 
@@ -201,14 +232,16 @@ function playerMove(dir){
 function playerReset(){
   const pieces = 'ILJOTSZ';
   player.matrix = createPiece(pieces[pieces.length*Math.random()|0]);
+
   player.pos.y = 0;
   player.pos.x = (arena[0].length/2 | 0) - 
                   (player.matrix[0].length /2 | 0);
 
-
   if(collide(arena, player)){
     arena.forEach(row => row.fill(0));
-  }                  
+    score = 0;
+  }
+
 }
 
 
@@ -257,6 +290,18 @@ function rotate(matrix, dir){
 }
 
 
+let score  = 0;
+function updateScore(type){
+  if(type === 'lineClear'){
+    score += 2300; 
+  }else if(type === 'fastDrop'){
+    score += 300;
+  }else if(type === 'slowDrop'){
+    score += 17;
+  }
+
+  scoreLabel.innerHTML = score;
+}
 
 //counter variables
 let dropCounter = 0;
@@ -264,6 +309,8 @@ let dropInterval = 1000;
 
 
 let prevTime = 0;
+
+
 
 //update fucntion used to keep udpating the game
 function update(time  = 0){
@@ -273,7 +320,7 @@ function update(time  = 0){
 
   dropCounter += deltaTime;
   if(dropCounter > dropInterval){
-    playerDrop();
+    automaticDrop();
   }  
 
   draw();
@@ -283,7 +330,7 @@ function update(time  = 0){
 }
 
 const colors = [
-  null,
+  '#242526', //Empty background
   'purple', //T 
   'yellow', //O
   'orange', //L
@@ -297,9 +344,11 @@ const colors = [
 const arena = createMatrix(10,20);
 
 
+
 const player = {
   pos: {x:1, y: 1},
-  matrix: createPiece('T'),}
+  matrix: createPiece('T'),
+}
 
 
 //eventlistsener for tracking keystrokes
@@ -315,7 +364,10 @@ document.addEventListener('keydown',  event =>{
     }else if (event.keyCode == 69 || event.keyCode == 38){
       playerRotate(1);
     }else if (event.keyCode == 32){
+      //triggers a hard drop, dropping player all the way to the end
       while(!playerDrop()){}
+      updateScore('fastDrop');
+
     }
 
 
